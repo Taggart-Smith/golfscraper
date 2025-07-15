@@ -1,8 +1,8 @@
 const puppeteer = require('puppeteer');
 const { MongoClient } = require('mongodb');
 
-const MONGO_URI = 'mongodb://localhost:27017'; // or your Atlas URI
-const DB_NAME = 'golf';
+const MONGO_URI = 'mongodb+srv://smithtaggart15:3U8pODunzZu9luDh@cluster0.f4y4i0g.mongodb.net/'; // or your Atlas URI
+const DB_NAME = 'tee-times';
 const COLLECTION_NAME = 'tee_times';
 
 const courses = [
