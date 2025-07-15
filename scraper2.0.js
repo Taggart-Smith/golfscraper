@@ -2,19 +2,29 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 
-const BASE_URL = 'https://app.membersports.com/tee-times/3689/4748/0/0/0';
+// List of courses with URLs
+const courses = [
+  {
+    name: 'FoxHollow',
+    url: 'https://app.membersports.com/tee-times/15396/18907/0/0/0'
+  },
+  {
+    name: 'CedarHills',
+    url: 'https://app.membersports.com/tee-times/15381/18891/0/0/0'
+  },
+  // Add more courses here
+];
 
-async function scrapeDays(daysToScrape = 3) {
+async function scrapeDays(courseName, courseUrl, daysToScrape = 3) {
   const browser = await puppeteer.launch({ headless: false, slowMo: 100 });
   const page = await browser.newPage();
 
-  await page.goto(BASE_URL, { waitUntil: 'networkidle2', timeout: 60000 });
-
+  await page.goto(courseUrl, { waitUntil: 'networkidle2', timeout: 60000 });
   await page.waitForSelector('.dateFormat');
 
   for (let i = 0; i < daysToScrape; i++) {
     const currentDateText = await page.$eval('.dateFormat', el => el.innerText.trim());
-    console.log(`\nChecking tee times for ${currentDateText}...`);
+    console.log(`\n${courseName} - Checking tee times for ${currentDateText}...`);
 
     try {
       await page.waitForSelector('.tee-time-slot, .teeTime.ng-star-inserted', { timeout: 3000 });
@@ -24,42 +34,41 @@ async function scrapeDays(daysToScrape = 3) {
         if (!teeTimesContainer) return [];
 
         return Array.from(teeTimesContainer.querySelectorAll('.teeTime.ng-star-inserted')).map(slot => {
-            const time = slot.querySelector('.timeCol')?.innerText?.trim();
-            const available = slot.querySelector('.availableBookings')?.innerText?.trim();
-            if (!time || !available) return null; // Skip if either is missing
-            return { time, available };
-            }).filter(Boolean);
-
+          const time = slot.querySelector('.timeCol')?.innerText?.trim();
+          const available = slot.querySelector('.availableBookings')?.innerText?.trim();
+          if (!time || !available) return null;
+          return { time, available };
+        }).filter(Boolean);
       });
 
       if (teeTimes.length === 0) {
-        console.log(`No tee times available for ${currentDateText}`);
+        console.log(`${courseName} - No tee times available for ${currentDateText}`);
       } else {
         console.table(teeTimes);
 
-        // Format filename from date
-        const filenameSafeDate = currentDateText.replace(/[^\w]/g, '-'); // e.g., "Jul-8-2025"
-        const filepath = path.join(__dirname, `tee-times-${filenameSafeDate}.json`);
+        const filenameSafeDate = currentDateText.replace(/[^\w]/g, '-');
+        const filepath = path.join(__dirname, `tee-times-${courseName}-${filenameSafeDate}.json`);
 
-        // Add date to each record
-        const dataWithDate = teeTimes.map(t => ({ ...t, date: currentDateText }));
+        const dataWithCourse = teeTimes.map(t => ({
+          ...t,
+          date: currentDateText,
+          course: courseName
+        }));
 
-        // Write to file
-        fs.writeFileSync(filepath, JSON.stringify(dataWithDate, null, 2));
+        fs.writeFileSync(filepath, JSON.stringify(dataWithCourse, null, 2));
         console.log(`✅ Saved to ${filepath}`);
       }
     } catch (error) {
       if (error.name === 'TimeoutError') {
-        console.log(`No tee times available for ${currentDateText}`);
+        console.log(`${courseName} - No tee times available for ${currentDateText}`);
       } else {
         throw error;
       }
     }
 
-    // Click next day
     const rightChevron = await page.$('.dateNavigation img[src*="chevron-right"]');
     if (!rightChevron) {
-      console.warn('Could not find "Next Day" chevron. Stopping.');
+      console.warn(`${courseName} - Could not find "Next Day" chevron. Stopping.`);
       break;
     }
 
@@ -81,4 +90,9 @@ async function scrapeDays(daysToScrape = 3) {
   await browser.close();
 }
 
-scrapeDays(5);
+// Run scrape for each course
+(async () => {
+  for (const course of courses) {
+    await scrapeDays(course.name, course.url, 5);
+  }
+})();
