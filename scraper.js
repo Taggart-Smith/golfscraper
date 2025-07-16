@@ -3,7 +3,7 @@ const { MongoClient } = require('mongodb');
 
 // MongoDB Config
 const MONGO_URI = 'mongodb+srv://smithtaggart15:3U8pODunzZu9luDh@cluster0.f4y4i0g.mongodb.net/';
-const DB_NAME = 'tee-times';
+const DB_NAME = 'golf';
 const COLLECTION_NAME = 'tee_times';
 
 // Golf courses to scrape
@@ -15,8 +15,7 @@ const courses = [
   {
     name: 'Cedar Hills',
     url: 'https://app.membersports.com/tee-times/15381/18891/0/0/0'
-  },
-  // Add more courses as needed
+  }
 ];
 
 async function scrapeDays(courseName, courseUrl, db, daysToScrape = 3) {
@@ -67,20 +66,25 @@ async function scrapeDays(courseName, courseUrl, db, daysToScrape = 3) {
         }).filter(Boolean);
       });
 
-      // Clean up old tee times for this course and date
       await collection.deleteMany({ course: courseName, date: currentDateText });
       console.log(`🧹 Removed old tee times for ${courseName} on ${currentDateText}`);
 
       if (teeTimes.length === 0) {
         console.log(`${courseName} - No tee times found for ${currentDateText}`);
       } else {
+        const today = new Date();
+        const [_, monthDay] = currentDateText.split(','); // e.g. " July 16"
+        const fullDateStr = `${monthDay.trim()}, ${today.getFullYear()}`; // "July 16, 2025"
+        const parsedDate = new Date(fullDateStr);
+
         const dataWithMeta = teeTimes.map(t => ({
           time: t.time,
-          course: t.courseName || courseName,
+          course: courseName,
           minPlayers: t.minPlayers,
           maxPlayers: t.maxPlayers,
           price: t.price,
           date: currentDateText,
+          dateISO: isNaN(parsedDate) ? new Date() : parsedDate,
           scrapedAt: new Date()
         }));
 
@@ -95,7 +99,7 @@ async function scrapeDays(courseName, courseUrl, db, daysToScrape = 3) {
       }
     }
 
-    // Navigate to next day
+    // Move to next day
     const rightChevron = await page.$('.dateNavigation img[src*="chevron-right"]');
     if (!rightChevron) {
       console.warn(`${courseName} - Could not find "Next Day" chevron. Stopping.`);
@@ -119,7 +123,6 @@ async function scrapeDays(courseName, courseUrl, db, daysToScrape = 3) {
   await browser.close();
 }
 
-// Main
 (async () => {
   const client = new MongoClient(MONGO_URI);
 
