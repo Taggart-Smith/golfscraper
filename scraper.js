@@ -30,9 +30,9 @@ const courses = [
 async function scrapeDays(courseName, courseUrl, db, daysToScrape = 5) {
   const browser = await puppeteer.launch({
     headless: "new",
+    slowMo: 100,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
-  console.log(`🌐 Launching browser for ${courseName}...`);
   const page = await browser.newPage();
 
   await page.goto(courseUrl, { waitUntil: "networkidle2", timeout: 60000 });
