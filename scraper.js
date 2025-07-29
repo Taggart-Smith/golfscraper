@@ -15,10 +15,18 @@ const courses = [
   {
     name: 'Cedar Hills',
     url: 'https://app.membersports.com/tee-times/15381/18891/0/0/0'
-  }
+  },
+  { 
+    name: 'Talons Cove',
+    url: 'https://app.membersports.com/tee-times/15455/18982/0/0/0'
+  },
+  {
+    name: 'Hobble Creek',
+    url: 'https://app.membersports.com/tee-times/15404/18918/0/0/0'
+  },
 ];
 
-async function scrapeDays(courseName, courseUrl, db, daysToScrape = 3) {
+async function scrapeDays(courseName, courseUrl, db, daysToScrape = 5) {
   const browser = await puppeteer.launch({ headless: false, slowMo: 100 });
   const page = await browser.newPage();
 
