@@ -2,7 +2,7 @@ name: Scrape Tee Times
 
 on:
   schedule:
-    - cron: "*/30 * * * *"  # every 30 minutes UTC
+    - cron: "0 * * * *"  # every hour UTC
   workflow_dispatch:     # manual run option
 
 jobs:
