@@ -1,11 +1,11 @@
 const puppeteer = require("puppeteer");
 const { MongoClient } = require("mongodb");
+require("dotenv").config();
 
 // MongoDB Config
-const MONGO_URI =
-  "mongodb+srv://smithtaggart15:3U8pODunzZu9luDh@cluster0.f4y4i0g.mongodb.net/";
-const DB_NAME = "golf";
-const COLLECTION_NAME = "tee_times";
+const MONGO_URI = process.env.MONGO_URI;
+const DB_NAME = process.env.DB_NAME;
+const COLLECTION_NAME = process.env.COLLECTION_NAME;
 
 // Golf courses to scrape
 const courses = [

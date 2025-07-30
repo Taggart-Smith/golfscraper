@@ -11,8 +11,9 @@
   "description": "",
   "dependencies": {
     "dayjs": "^1.11.13",
+    "dotenv": "^17.2.1",
     "inquirer": "^12.7.0",
     "mongodb": "^6.17.0",
-    "puppeteer": "^24.12.0"
+    "puppeteer": "^24.15.0"
   }
 }
