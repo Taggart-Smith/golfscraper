@@ -10,27 +10,55 @@ const courses = [
   {
     name: "Thanksgiving Point",
     url: "https://foreupsoftware.com/index.php/booking/19645/2034?wmode=opaque#/teetimes",
+    buttonText: "Public",
   },
   {
     name: "Gladstan",
     url: "https://foreupsoftware.com/index.php/booking/index/18922?_gl=1*9acldx*_ga*MTE1MDQxODcwNy4xNzU0MjU2MTc1*_ga_WQPLP348DP*czE3NTQyNzM3NjEkbzIkZzAkdDE3NTQyNzM3NjEkajYwJGwwJGgw#/teetimes",
-  }
+    buttonText: "Public",
+  },
+  {
+    name: "The Oaks at Spanish Fork",
+    url: "https://foreupsoftware.com/index.php/booking/21698/8633#teetimes",
+    buttonText: "Public Tee Times",
+  },
+  {
+    name: "Sleepy Ridge",
+    url: "https://foreupsoftware.com/index.php/booking/19396/1726#teetimes",
+    buttonText: "I agree",
+  },
+  // {
+  //   name: "Timpanogos",
+  //   url: "https://app.foreupsoftware.com/index.php/booking/6279/49#/teetimes",
+  //   buttonText: "Online Tee Times",
+  // },
 ];
 
-async function scrapeDays(courseName, courseUrl, db, daysToScrape = 5) {
+async function scrapeDays(course, db, daysToScrape = 5) {
   const browser = await puppeteer.launch({ headless: false, slowMo: 100 });
   const page = await browser.newPage();
 
+  const buttonText = course.buttonText || "Public";
+  const courseName = course.name;
+  const courseUrl = course.url;
+
   await page.goto(courseUrl, { waitUntil: "networkidle2", timeout: 60000 });
 
-  // Click the "Public" button
-  const buttons = await page.$$("button");
-  for (const btn of buttons) {
-    const text = await page.evaluate((el) => el.textContent.trim(), btn);
-    if (text.includes("Public")) {
-      await btn.click();
-      break;
+  // Handle any "I Agree", "Public", or similar gate buttons
+  const buttonClicked = await page.evaluate((btnText) => {
+    const buttons = Array.from(document.querySelectorAll("button"));
+    const target = buttons.find((b) => b.textContent.trim().includes(btnText));
+    if (target) {
+      target.click();
+      return true;
     }
+    return false;
+  }, buttonText);
+
+  if (!buttonClicked) {
+    console.warn(
+      `⚠️ Button with text "${buttonText}" not found for course ${course.name}`
+    );
   }
 
   // Click the active day cell to ensure the calendar starts on the correct date
@@ -43,7 +71,6 @@ async function scrapeDays(courseName, courseUrl, db, daysToScrape = 5) {
   const collection = db.collection(COLLECTION_NAME);
 
   for (let i = 0; i < daysToScrape; i++) {
-    // Get the currently selected date directly from the UI
     const currentDateText = await page.evaluate(() => {
       const monthYear = document
         .querySelector(".datepicker-switch")
@@ -55,6 +82,7 @@ async function scrapeDays(courseName, courseUrl, db, daysToScrape = 5) {
         ? `${monthYear} ${activeDay}`
         : "Unknown date";
     });
+
     console.log(
       `\n${courseName} - Scraping tee times for ${currentDateText}...`
     );
@@ -62,7 +90,9 @@ async function scrapeDays(courseName, courseUrl, db, daysToScrape = 5) {
     try {
       await page.waitForSelector(
         ".times-inner.time-tiles-aggregate-booking.js-times",
-        { timeout: 10000 }
+        {
+          timeout: 1000,
+        }
       );
 
       const teeTimes = await page.evaluate(() => {
@@ -79,12 +109,9 @@ async function scrapeDays(courseName, courseUrl, db, daysToScrape = 5) {
               .querySelector(".times-booking-start-time-label")
               ?.innerText?.trim();
 
-            // Sanitize time: "HH:MM AM/PM" with a space before AM/PM
             if (time) {
               const match = time.match(/(\d{1,2}:\d{2})\s*([APMapm]{2})/);
-              if (match) {
-                time = `${match[1]} ${match[2].toUpperCase()}`;
-              }
+              if (match) time = `${match[1]} ${match[2].toUpperCase()}`;
             }
 
             const minPlayers = 1;
@@ -103,17 +130,11 @@ async function scrapeDays(courseName, courseUrl, db, daysToScrape = 5) {
 
             if (!time) return null;
 
-            return {
-              time,
-              minPlayers,
-              maxPlayers,
-              price,
-            };
+            return { time, minPlayers, maxPlayers, price };
           })
           .filter(Boolean);
       });
 
-      // Format date as "MON, AUG 4, 2025"
       function formatDbDate(dateObj) {
         const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
         const months = [
@@ -142,17 +163,13 @@ async function scrapeDays(courseName, courseUrl, db, daysToScrape = 5) {
           `${courseName} - No tee times found for ${currentDateText}`
         );
       } else {
-        // Parse the active date from the calendar
-        const activeDayNum = await page.evaluate(() => {
-          return document.querySelector("td.active.day")?.textContent.trim();
-        });
-        const monthYear = await page.evaluate(() => {
-          return document
-            .querySelector(".datepicker-switch")
-            ?.textContent.trim();
-        });
+        const activeDayNum = await page.evaluate(() =>
+          document.querySelector("td.active.day")?.textContent.trim()
+        );
+        const monthYear = await page.evaluate(() =>
+          document.querySelector(".datepicker-switch")?.textContent.trim()
+        );
 
-        // Build a JS Date object from monthYear and activeDayNum
         let parsedDate = new Date(`${monthYear} ${activeDayNum}`);
         if (isNaN(parsedDate)) parsedDate = new Date();
 
@@ -173,7 +190,6 @@ async function scrapeDays(courseName, courseUrl, db, daysToScrape = 5) {
         console.log(`✅ Inserted ${dataWithMeta.length} tee times`);
       }
 
-      // Click "Next Day" and wait a bit
       const nextDayBtn = await page.$(
         ".ob-filters-date-selection-arrows.nextday"
       );
@@ -185,7 +201,7 @@ async function scrapeDays(courseName, courseUrl, db, daysToScrape = 5) {
       }
 
       await nextDayBtn.click();
-      await new Promise((res) => setTimeout(res, 2500)); // Let next day's data load
+      await new Promise((res) => setTimeout(res, 2500));
     } catch (err) {
       console.log(
         `${courseName} - Failed to scrape for ${currentDateText}:`,
@@ -204,7 +220,8 @@ async function main() {
     await client.connect();
     const db = client.db(DB_NAME);
     for (const course of courses) {
-      await scrapeDays(course.name, course.url, db, 5);
+      console.log(`\n📍 Scraping: ${course.name}`);
+      await scrapeDays(course, db, 5);
     }
     console.log("✅ Finished scraping.");
   } catch (err) {
