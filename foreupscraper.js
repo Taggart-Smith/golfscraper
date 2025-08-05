@@ -12,21 +12,21 @@ const courses = [
     url: "https://foreupsoftware.com/index.php/booking/19645/2034?wmode=opaque#/teetimes",
     buttonText: "Public",
   },
-  // {
-  //   name: "Gladstan",
-  //   url: "https://foreupsoftware.com/index.php/booking/index/18922?_gl=1*9acldx*_ga*MTE1MDQxODcwNy4xNzU0MjU2MTc1*_ga_WQPLP348DP*czE3NTQyNzM3NjEkbzIkZzAkdDE3NTQyNzM3NjEkajYwJGwwJGgw#/teetimes",
-  //   buttonText: "Public",
-  // },
-  // {
-  //   name: "The Oaks at Spanish Fork",
-  //   url: "https://foreupsoftware.com/index.php/booking/21698/8633#teetimes",
-  //   buttonText: "Public Tee Times",
-  // },
-  // {
-  //   name: "Sleepy Ridge",
-  //   url: "https://foreupsoftware.com/index.php/booking/19396/1726#teetimes",
-  //   buttonText: "I agree",
-  // },
+  {
+    name: "Gladstan",
+    url: "https://foreupsoftware.com/index.php/booking/index/18922?_gl=1*9acldx*_ga*MTE1MDQxODcwNy4xNzU0MjU2MTc1*_ga_WQPLP348DP*czE3NTQyNzM3NjEkbzIkZzAkdDE3NTQyNzM3NjEkajYwJGwwJGgw#/teetimes",
+    buttonText: "Public",
+  },
+  {
+    name: "The Oaks at Spanish Fork",
+    url: "https://foreupsoftware.com/index.php/booking/21698/8633#teetimes",
+    buttonText: "Public Tee Times",
+  },
+  {
+    name: "Sleepy Ridge",
+    url: "https://foreupsoftware.com/index.php/booking/19396/1726#teetimes",
+    buttonText: "I agree",
+  },
 
   
   // {

@@ -1,26 +1,26 @@
-name: Scrape Tee Times
+# name: Scrape Tee Times
 
-on:
-  schedule:
-    - cron: "0 * * * *"  # every hour UTC
-  workflow_dispatch:     # manual run option
+# on:
+#   schedule:
+#     - cron: "0 * * * *"  # every hour UTC
+#   workflow_dispatch:     # manual run option
 
-jobs:
-  scrape:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+# jobs:
+#   scrape:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v3
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: "20"
+#       - name: Set up Node.js
+#         uses: actions/setup-node@v3
+#         with:
+#           node-version: "20"
 
-      - name: Install dependencies
-        run: npm install
+#       - name: Install dependencies
+#         run: npm install
 
-      - name: Run scraper
-        env:
-          MONGO_URI: ${{ secrets.MONGO_URI }}
-        run: node scraper.js
+#       - name: Run scraper
+#         env:
+#           MONGO_URI: ${{ secrets.MONGO_URI }}
+#         run: node scraper.js
