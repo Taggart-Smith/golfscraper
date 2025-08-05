@@ -12,21 +12,23 @@ const courses = [
     url: "https://foreupsoftware.com/index.php/booking/19645/2034?wmode=opaque#/teetimes",
     buttonText: "Public",
   },
-  {
-    name: "Gladstan",
-    url: "https://foreupsoftware.com/index.php/booking/index/18922?_gl=1*9acldx*_ga*MTE1MDQxODcwNy4xNzU0MjU2MTc1*_ga_WQPLP348DP*czE3NTQyNzM3NjEkbzIkZzAkdDE3NTQyNzM3NjEkajYwJGwwJGgw#/teetimes",
-    buttonText: "Public",
-  },
-  {
-    name: "The Oaks at Spanish Fork",
-    url: "https://foreupsoftware.com/index.php/booking/21698/8633#teetimes",
-    buttonText: "Public Tee Times",
-  },
-  {
-    name: "Sleepy Ridge",
-    url: "https://foreupsoftware.com/index.php/booking/19396/1726#teetimes",
-    buttonText: "I agree",
-  },
+  // {
+  //   name: "Gladstan",
+  //   url: "https://foreupsoftware.com/index.php/booking/index/18922?_gl=1*9acldx*_ga*MTE1MDQxODcwNy4xNzU0MjU2MTc1*_ga_WQPLP348DP*czE3NTQyNzM3NjEkbzIkZzAkdDE3NTQyNzM3NjEkajYwJGwwJGgw#/teetimes",
+  //   buttonText: "Public",
+  // },
+  // {
+  //   name: "The Oaks at Spanish Fork",
+  //   url: "https://foreupsoftware.com/index.php/booking/21698/8633#teetimes",
+  //   buttonText: "Public Tee Times",
+  // },
+  // {
+  //   name: "Sleepy Ridge",
+  //   url: "https://foreupsoftware.com/index.php/booking/19396/1726#teetimes",
+  //   buttonText: "I agree",
+  // },
+
+  
   // {
   //   name: "Timpanogos",
   //   url: "https://app.foreupsoftware.com/index.php/booking/6279/49#/teetimes",
@@ -134,6 +136,14 @@ async function scrapeDays(course, db, daysToScrape = 5) {
           })
           .filter(Boolean);
       });
+
+      await collection.deleteMany({
+        course: courseName,
+        date: currentDateText,
+      });
+      console.log(
+        `🧹 Removed old tee times for ${courseName} on ${currentDateText}`
+      );
 
       function formatDbDate(dateObj) {
         const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
