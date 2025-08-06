@@ -54,7 +54,7 @@ async function scrapeDays(course, db, daysToScrape = 5) {
     try {
       await iframe.waitForSelector(
         '[data-testid="teetimes-tile-header-component"]',
-        { timeout: 7000 }
+        { timeout: 6000 }
       );
 
       const teeTimeCards = await iframe.$$eval(() => {
