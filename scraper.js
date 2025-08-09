@@ -13,18 +13,18 @@ const courses = [
     name: "Fox Hollow",
     url: "https://app.membersports.com/tee-times/15396/18907/0/0/0",
   },
-  {
-    name: "Cedar Hills",
-    url: "https://app.membersports.com/tee-times/15381/18891/0/0/0",
-  },
-  {
-    name: "Talons Cove",
-    url: "https://app.membersports.com/tee-times/15455/18982/0/0/0",
-  },
-  {
-    name: "Hobble Creek",
-    url: "https://app.membersports.com/tee-times/15404/18918/0/0/0",
-  },
+  // {
+  //   name: "Cedar Hills",
+  //   url: "https://app.membersports.com/tee-times/15381/18891/0/0/0",
+  // },
+  // {
+  //   name: "Talons Cove",
+  //   url: "https://app.membersports.com/tee-times/15455/18982/0/0/0",
+  // },
+  // {
+  //   name: "Hobble Creek",
+  //   url: "https://app.membersports.com/tee-times/15404/18918/0/0/0",
+  // },
 ];
 
 async function scrapeDays(courseName, courseUrl, db, daysToScrape = 5) {
