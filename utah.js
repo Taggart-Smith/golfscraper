@@ -15,6 +15,73 @@ const courses = [
   },
 ];
 
+/**
+ * Clicks the next available day in the date picker inside the iframe.
+ * @param {Frame} frame - Puppeteer frame for the iframe.
+ * @param {string} prevDate - The current date text before changing.
+ * @returns {boolean} - Returns true if it clicked a new day, false if no next day was found.
+ */
+async function clickNextDay(frame, prevDate) {
+  console.log("📅 Attempting to click next day...");
+
+  // Step 1: Open calendar
+  await frame.waitForSelector(
+    ".MuiIconButton-root.MuiIconButton-colorPrimary",
+    {
+      visible: true,
+    }
+  );
+  await frame.click(".MuiIconButton-root.MuiIconButton-colorPrimary");
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  // Step 2: Wait for calendar to render gridcells
+  await frame.waitForFunction(
+    () => {
+      return document.querySelectorAll('button[role="gridcell"]').length > 0;
+    },
+    { timeout: 10000 }
+  );
+
+  // Step 3: Click next available (non-disabled) day
+  const clicked = await frame.evaluate(() => {
+    const cells = Array.from(
+      document.querySelectorAll('button[role="gridcell"]')
+    );
+    const currentIndex = cells.findIndex(
+      (btn) => btn.getAttribute("aria-selected") === "true"
+    );
+
+    if (currentIndex === -1) return false;
+
+    for (let i = currentIndex + 1; i < cells.length; i++) {
+      const btn = cells[i];
+      if (!btn.disabled) {
+        btn.click();
+        return true;
+      }
+    }
+
+    return false;
+  });
+
+  // Step 4: Wait for date to update
+  if (clicked) {
+    console.log("✅ Clicked next day. Waiting for date to update...");
+    await frame.waitForFunction(
+      (oldDate) => {
+        const el = document.querySelector("#selectDatePicker");
+        return el && el.innerText.trim() !== oldDate;
+      },
+      {},
+      prevDate
+    );
+    return true;
+  } else {
+    console.log("⚠️ No next enabled day found.");
+    return false;
+  }
+}
+
 async function scrapeDays(course, db, daysToScrape = 5) {
   const browser = await puppeteer.launch({
     headless: false,
@@ -26,7 +93,7 @@ async function scrapeDays(course, db, daysToScrape = 5) {
 
   const collection = db.collection(COLLECTION_NAME);
 
-  // Get iframe
+  // Get iframe once
   await page.waitForSelector("iframe");
   const iframeHandle = await page.$("iframe");
   const frame = await iframeHandle.contentFrame();
@@ -34,29 +101,26 @@ async function scrapeDays(course, db, daysToScrape = 5) {
   for (let dayIndex = 0; dayIndex < daysToScrape; dayIndex++) {
     await frame.waitForSelector("#selectDatePicker");
 
-    // Get current date
     const currentDateText = await frame.$eval("#selectDatePicker", (el) =>
       el.innerText.trim()
     );
+
     console.log(
       `\n${course.name} - Scraping tee times for ${currentDateText}...`
     );
 
-    // Scrape tee times
+    let teeTimeCards = [];
     try {
       const noTeeTimes = await frame.$('[data-testid="no-records-found"]');
 
       if (noTeeTimes) {
         console.log(`⚠️ No tee times available for ${currentDateText}`);
-        clickNextDay(frame, currentDateText);
       } else {
-        // Scrape tee times only if the "no tee times" element is not found
         await frame.waitForSelector(
           '[data-testid="teetimes-tile-header-component"]',
           { timeout: 6000 }
         );
-
-        const teeTimeCards = await frame.$$eval(
+        teeTimeCards = await frame.$$eval(
           '[data-testid="teetimes-tile-header-component"]',
           (cards) => {
             return cards.map((card) => {
@@ -73,7 +137,6 @@ async function scrapeDays(course, db, daysToScrape = 5) {
         console.table(teeTimeCards);
       }
 
-      // Optionally save to MongoDB
       if (teeTimeCards.length > 0) {
         await collection.insertMany(
           teeTimeCards.map((t) => ({
@@ -89,38 +152,10 @@ async function scrapeDays(course, db, daysToScrape = 5) {
       );
     }
 
-    // If not the last day, click the next day
-    async function clickNextDay(frame, prevDate) {
-      const clicked = await frame.evaluate(() => {
-        const current = document.querySelector('button[aria-selected="true"]');
-        if (!current) return false;
-
-        const buttons = Array.from(
-          document.querySelectorAll('button[role="gridcell"]')
-        );
-        const index = buttons.indexOf(current);
-        if (buttons[index + 1]) {
-          buttons[index + 1].click();
-          return true;
-        }
-        return false;
-      });
-
-      if (clicked) {
-        // Wait for the date to change
-        await frame.waitForFunction(
-          (oldDate) => {
-            const el = document.querySelector("#selectDatePicker");
-            return el && el.innerText.trim() !== oldDate;
-          },
-          {},
-          prevDate
-        );
-        return true;
-      } else {
-        console.log("⚠️ No next day found.");
-        return false;
-      }
+    // Move to next day if not the last loop
+    if (dayIndex < daysToScrape - 1) {
+      const moved = await clickNextDay(frame, currentDateText);
+      if (!moved) break;
     }
   }
 
