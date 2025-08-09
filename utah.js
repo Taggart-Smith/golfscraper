@@ -21,76 +21,106 @@ async function scrapeDays(course, db, daysToScrape = 5) {
     slowMo: 100,
   });
 
-  const courseName = course.name;
-  const courseUrl = course.url;
-
   const page = await browser.newPage();
-  await page.goto(courseUrl, { waitUntil: "networkidle2", timeout: 60000 });
+  await page.goto(course.url, { waitUntil: "networkidle2", timeout: 60000 });
 
   const collection = db.collection(COLLECTION_NAME);
 
-  for (let i = 0; i < daysToScrape; i++) {
-    await page.waitForSelector("iframe");
+  // Get iframe
+  await page.waitForSelector("iframe");
+  const iframeHandle = await page.$("iframe");
+  const frame = await iframeHandle.contentFrame();
 
-    // Get the iframe handle
-    const iframeHandle = await page.$("iframe");
-    const frame = await iframeHandle.contentFrame();
-
+  for (let dayIndex = 0; dayIndex < daysToScrape; dayIndex++) {
     await frame.waitForSelector("#selectDatePicker");
+
+    // Get current date
     const currentDateText = await frame.$eval("#selectDatePicker", (el) =>
       el.innerText.trim()
     );
+    console.log(
+      `\n${course.name} - Scraping tee times for ${currentDateText}...`
+    );
 
-    for (let i = 0; i < daysToScrape; i++) {
-      const currentDateText = await frame.$eval("#selectDatePicker", (el) => {
-        return el.value || el.innerText || "Unknown date";
-      });
+    // Scrape tee times
+    try {
+      const noTeeTimes = await frame.$('[data-testid="no-records-found"]');
 
-      console.log(
-        `\n${courseName} - Scraping tee times for ${currentDateText}...`
+      if (noTeeTimes) {
+        console.log(`⚠️ No tee times available for ${currentDateText}`);
+        clickNextDay(frame, currentDateText);
+      } else {
+        // Scrape tee times only if the "no tee times" element is not found
+        await frame.waitForSelector(
+          '[data-testid="teetimes-tile-header-component"]',
+          { timeout: 6000 }
+        );
+
+        const teeTimeCards = await frame.$$eval(
+          '[data-testid="teetimes-tile-header-component"]',
+          (cards) => {
+            return cards.map((card) => {
+              const time =
+                card
+                  .querySelector('[data-testid="teetimes-tile-time"]')
+                  ?.textContent.trim() || "";
+              return { time };
+            });
+          }
+        );
+
+        console.log(`🟢 Found ${teeTimeCards.length} tee times`);
+        console.table(teeTimeCards);
+      }
+
+      // Optionally save to MongoDB
+      if (teeTimeCards.length > 0) {
+        await collection.insertMany(
+          teeTimeCards.map((t) => ({
+            course: course.name,
+            date: currentDateText,
+            ...t,
+          }))
+        );
+      }
+    } catch (err) {
+      console.error(
+        `${course.name} - Failed for ${currentDateText}: ${err.message}`
       );
     }
 
-    try {
-      await iframe.waitForSelector(
-        '[data-testid="teetimes-tile-header-component"]',
-        { timeout: 6000 }
-      );
+    // If not the last day, click the next day
+    async function clickNextDay(frame, prevDate) {
+      const clicked = await frame.evaluate(() => {
+        const current = document.querySelector('button[aria-selected="true"]');
+        if (!current) return false;
 
-      const teeTimeCards = await iframe.$$eval(() => {
-        const container = document.querySelector(
-          "[data-testid='teetimes-tile-header-component']"
+        const buttons = Array.from(
+          document.querySelectorAll('button[role="gridcell"]')
         );
-        if (!container) return [];
-
-        return Array.from(
-          document.querySelectorAll(
-            '[data-testid="teetimes-tile-header-component"]'
-          )
-        )
-          .map((card) => {
-            let time =
-              card
-                .querySelector('[data-testid="teetimes-tile-time"]')
-                ?.textContent.trim() || "";
-
-            // You can extract more fields here as needed:
-            // const price = card.querySelector('[data-testid="teetimes-price"]')?.textContent.trim() || '';
-            // const availability = ...
-
-            return { time };
-          })
-          .filter(Boolean); // Remove null values
+        const index = buttons.indexOf(current);
+        if (buttons[index + 1]) {
+          buttons[index + 1].click();
+          return true;
+        }
+        return false;
       });
 
-      console.log(
-        `🟢 Found ${teeTimeCards.length} tee time cards for ${currentDateText}`
-      );
-      console.table(teeTimeCards);
-    } catch (err) {
-      console.error(
-        `${course.name} - Failed to scrape for ${currentDateText}: ${err.message}`
-      );
+      if (clicked) {
+        // Wait for the date to change
+        await frame.waitForFunction(
+          (oldDate) => {
+            const el = document.querySelector("#selectDatePicker");
+            return el && el.innerText.trim() !== oldDate;
+          },
+          {},
+          prevDate
+        );
+        return true;
+      } else {
+        console.log("⚠️ No next day found.");
+        return false;
+      }
     }
   }
 
