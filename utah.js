@@ -24,33 +24,27 @@ const courses = [
 async function clickNextDay(frame, prevDate) {
   console.log("📅 Attempting to click next day...");
 
-  // Step 1: Open calendar
+  // Step 1: Ensure calendar button exists
   await frame.waitForSelector(
     ".MuiIconButton-root.MuiIconButton-colorPrimary",
-    {
-      visible: true,
-    }
+    { visible: true, timeout: 10000 }
   );
-  await frame.click(".MuiIconButton-root.MuiIconButton-colorPrimary");
-  await new Promise((resolve) => setTimeout(resolve, 500));
 
-  // Step 2: Wait for calendar to render gridcells
+  // Wait for the calendar grid to be visible
+  await frame.waitForSelector('div[role="grid"]', { visible: true, timeout: 10000 });
+
+  // Step 3: Wait for gridcell buttons to appear
   await frame.waitForFunction(
-    () => {
-      return document.querySelectorAll('button[role="gridcell"]').length > 0;
-    },
+    () => document.querySelectorAll('button[role="gridcell"]').length > 0,
     { timeout: 10000 }
   );
 
-  // Step 3: Click next available (non-disabled) day
+  // Step 4: Find and click the next available date
   const clicked = await frame.evaluate(() => {
-    const cells = Array.from(
-      document.querySelectorAll('button[role="gridcell"]')
-    );
+    const cells = [...document.querySelectorAll('button[role="gridcell"]')];
     const currentIndex = cells.findIndex(
       (btn) => btn.getAttribute("aria-selected") === "true"
     );
-
     if (currentIndex === -1) return false;
 
     for (let i = currentIndex + 1; i < cells.length; i++) {
@@ -60,27 +54,28 @@ async function clickNextDay(frame, prevDate) {
         return true;
       }
     }
-
     return false;
   });
 
-  // Step 4: Wait for date to update
-  if (clicked) {
-    console.log("✅ Clicked next day. Waiting for date to update...");
-    await frame.waitForFunction(
-      (oldDate) => {
-        const el = document.querySelector("#selectDatePicker");
-        return el && el.innerText.trim() !== oldDate;
-      },
-      {},
-      prevDate
-    );
-    return true;
-  } else {
+  if (!clicked) {
     console.log("⚠️ No next enabled day found.");
     return false;
   }
+
+  // Step 5: Wait for date to update
+  console.log("✅ Clicked next day. Waiting for date change...");
+  await frame.waitForFunction(
+    (oldDate) => {
+      const el = document.querySelector("#selectDatePicker");
+      return el && el.innerText.trim() !== oldDate;
+    },
+    { timeout: 10000 },
+    prevDate
+  );
+
+  return true;
 }
+
 
 async function scrapeDays(course, db, daysToScrape = 5) {
   const browser = await puppeteer.launch({
@@ -97,6 +92,11 @@ async function scrapeDays(course, db, daysToScrape = 5) {
   await page.waitForSelector("iframe");
   const iframeHandle = await page.$("iframe");
   const frame = await iframeHandle.contentFrame();
+
+  const calendarButtonSelector = 'button[aria-label="date-filter"]';
+
+  // Step 2: Open calendar
+  await frame.click(calendarButtonSelector);
 
   for (let dayIndex = 0; dayIndex < daysToScrape; dayIndex++) {
     await frame.waitForSelector("#selectDatePicker");
