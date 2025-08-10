@@ -23,23 +23,16 @@ const courses = [
  */
 async function clickNextDay(frame, prevDate) {
   console.log("📅 Attempting to click next day...");
-
-  // Step 1: Ensure calendar button exists
   await frame.waitForSelector(
     ".MuiIconButton-root.MuiIconButton-colorPrimary",
     { visible: true, timeout: 10000 }
   );
-
-  // Wait for the calendar grid to be visible
   await frame.waitForSelector('div[role="grid"]', { visible: true, timeout: 10000 });
-
-  // Step 3: Wait for gridcell buttons to appear
   await frame.waitForFunction(
     () => document.querySelectorAll('button[role="gridcell"]').length > 0,
     { timeout: 10000 }
   );
 
-  // Step 4: Find and click the next available date
   const clicked = await frame.evaluate(() => {
     const cells = [...document.querySelectorAll('button[role="gridcell"]')];
     const currentIndex = cells.findIndex(
@@ -62,7 +55,6 @@ async function clickNextDay(frame, prevDate) {
     return false;
   }
 
-  // Step 5: Wait for date to update
   console.log("✅ Clicked next day. Waiting for date change...");
   await frame.waitForFunction(
     (oldDate) => {
@@ -98,7 +90,7 @@ async function scrapeDays(course, db, daysToScrape = 5) {
   // Step 2: Open calendar
   await frame.click(calendarButtonSelector);
 
-  for (let dayIndex = 0; dayIndex < daysToScrape; dayIndex++) {
+  for (let i = 0; i < daysToScrape; i++) {
     await frame.waitForSelector("#selectDatePicker");
 
     const currentDateText = await frame.$eval("#selectDatePicker", (el) =>
@@ -153,7 +145,7 @@ async function scrapeDays(course, db, daysToScrape = 5) {
     }
 
     // Move to next day if not the last loop
-    if (dayIndex < daysToScrape - 1) {
+    if (i < daysToScrape - 1) {
       const moved = await clickNextDay(frame, currentDateText);
       if (!moved) break;
     }
