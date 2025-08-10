@@ -9,14 +9,14 @@ const COLLECTION_NAME = process.env.COLLECTION_NAME;
 
 // Golf courses to scrape
 const courses = [
-  {
-    name: "Fox Hollow",
-    url: "https://app.membersports.com/tee-times/15396/18907/0/0/0",
-  },
   // {
-  //   name: "Cedar Hills",
-  //   url: "https://app.membersports.com/tee-times/15381/18891/0/0/0",
+  //   name: "Fox Hollow",
+  //   url: "https://app.membersports.com/tee-times/15396/18907/0/0/0",
   // },
+  {
+    name: "Cedar Hills",
+    url: "https://app.membersports.com/tee-times/15381/18891/0/0/0",
+  },
   // {
   //   name: "Talons Cove",
   //   url: "https://app.membersports.com/tee-times/15455/18982/0/0/0",
