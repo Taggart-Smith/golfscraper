@@ -140,24 +140,23 @@ async function scrapeDays(course, db, daysToScrape = 5) {
                   ?.textContent.trim() || "";
 
               const priceText = (() => {
-                const paragraphs = Array.from(
-                  card.querySelectorAll(
-                    ".MuiTypography-root.MuiTypography-body1"
-                  )
-                );
-                const priceIndex = paragraphs.findIndex(
-                  (el) => el.textContent.trim() === "Price:"
-                );
-                if (priceIndex !== -1 && paragraphs[priceIndex + 1]) {
-                  return paragraphs[priceIndex + 1].textContent.trim();
-                }
-                return null;
-              })();
+  const pTags = Array.from(
+    card.querySelectorAll(".MuiTypography-root.MuiTypography-body1")
+  );
 
-              const price = priceText
-                ? parseFloat(priceText.replace(/[^0-9.]/g, ""))
-                : null;
-              console.log("🧪 Card HTML:", card.innerHTML);
+  // Find the first <p> that looks like a dollar amount
+  const priceEl = pTags.find((el) =>
+    /^\$\d+(\.\d{2})?$/.test(el.textContent.trim())
+  );
+
+  return priceEl?.textContent.trim() ?? null;
+})();
+
+const price = priceText
+  ? parseFloat(priceText.replace(/[^0-9.]/g, ""))
+  : null;
+
+console.log("💸 Extracted price:", priceText, "Parsed:", price);
 
               const playersText = card
                 .querySelector(
@@ -226,7 +225,7 @@ async function main() {
     const db = client.db(DB_NAME);
     for (const course of courses) {
       console.log(`\n📍 Scraping: ${course.name}`);
-      await scrapeDays(course, db, 5); // Adjust number of days if needed
+      await scrapeDays(course, db, 2); // Adjust number of days if needed
     }
     console.log("✅ Finished scraping.");
   } catch (err) {
