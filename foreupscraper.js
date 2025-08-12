@@ -48,7 +48,7 @@ async function scrapeDays(course, db, daysToScrape = 5) {
 
   const buttonText = course.buttonText || "Public";
   const courseName = course.name;
-  await page.waitForSelector(buttonSelector, { timeout: 5000 });
+  await page.waitForSelector(buttonText, { timeout: 5000 });
 
 
   // Handle any "I Agree", "Public", or similar gate buttons
