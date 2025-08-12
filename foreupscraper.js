@@ -48,27 +48,51 @@ async function scrapeDays(course, db, daysToScrape = 5) {
 
   const buttonText = course.buttonText || "Public";
   const courseName = course.name;
-  await new Promise(res => setTimeout(res, 3000));
 
+  // Wait up to 10s for any clickable element containing the button text (case-insensitive)
+  try {
+    await page.waitForFunction(
+      (text) => {
+        return Array.from(document.querySelectorAll("button, a, div"))
+          .some(
+            (el) =>
+              el.textContent &&
+              el.textContent.trim().toLowerCase().includes(text.toLowerCase())
+          );
+      },
+      { timeout: 10000 },
+      buttonText
+    );
 
-  // Handle any "I Agree", "Public", or similar gate buttons
-  const buttonClicked = await page.evaluate((btnText) => {
-    const buttons = Array.from(document.querySelectorAll("button"));
-    const target = buttons.find((b) => b.textContent.trim().includes(btnText));
-    if (target) {
-      target.click();
-      return true;
+    const clicked = await page.evaluate((text) => {
+      const elements = Array.from(document.querySelectorAll("button, a, div"));
+      const target = elements.find(
+        (el) =>
+          el.textContent &&
+          el.textContent.trim().toLowerCase().includes(text.toLowerCase())
+      );
+      if (target) {
+        target.click();
+        return true;
+      }
+      return false;
+    }, buttonText);
+
+    if (clicked) {
+      console.log(`✅ Clicked booking button "${buttonText}" for ${courseName}`);
+      await page.waitForSelector(".datepicker-switch", { timeout: 10000 });
+    } else {
+      console.warn(
+        `⚠️ Button with text "${buttonText}" not found for course ${courseName}`
+      );
     }
-    return false;
-  }, buttonText);
-
-  if (!buttonClicked) {
+  } catch (err) {
     console.warn(
-      `⚠️ Button with text "${buttonText}" not found for course ${course.name}`
+      `⚠️ Could not find booking button "${buttonText}" for ${courseName}: ${err.message}`
     );
   }
 
-  // Click the active day cell to ensure the calendar starts on the correct date
+  // Click the active day cell to ensure calendar starts on the correct date
   await page.evaluate(() => {
     const activeDay = document.querySelector("td.active.day");
     if (activeDay) activeDay.click();
@@ -90,9 +114,7 @@ async function scrapeDays(course, db, daysToScrape = 5) {
         : "Unknown date";
     });
 
-    console.log(
-      `\n${courseName} - Scraping tee times for ${currentDateText}...`
-    );
+    console.log(`\n${courseName} - Scraping tee times for ${currentDateText}...`);
 
     try {
       await page.waitForSelector(
@@ -166,9 +188,7 @@ async function scrapeDays(course, db, daysToScrape = 5) {
       }
 
       if (teeTimes.length === 0) {
-        console.log(
-          `${courseName} - No tee times found for ${currentDateText}`
-        );
+        console.log(`${courseName} - No tee times found for ${currentDateText}`);
       } else {
         const activeDayNum = await page.evaluate(() =>
           document.querySelector("td.active.day")?.textContent.trim()
@@ -196,9 +216,7 @@ async function scrapeDays(course, db, daysToScrape = 5) {
           course: courseName,
           date: formattedDate,
         });
-        console.log(
-          `🧹 Removed old tee times for ${courseName} on ${formattedDate}`
-        );
+        console.log(`🧹 Removed old tee times for ${courseName} on ${formattedDate}`);
 
         await collection.insertMany(dataWithMeta);
         console.log(`✅ Inserted ${dataWithMeta.length} tee times`);
