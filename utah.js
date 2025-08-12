@@ -13,25 +13,53 @@ const courses = [
     name: "Soldier Hollow",
     url: "https://stateparks.utah.gov/golf/soldier-hollow/teetime/",
   },
+  {
+    name: "Wasatch",
+    url: "https://stateparks.utah.gov/golf/wasatch/teetime/",
+  },
+  {
+    name: "Palisade",
+    url: "https://stateparks.utah.gov/golf/palisade/teetime/",
+  },
 ];
 
 // Format DB date for consistency
 function formatDbDate(dateObj) {
   const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-  const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  const months = [
+    "JAN",
+    "FEB",
+    "MAR",
+    "APR",
+    "MAY",
+    "JUN",
+    "JUL",
+    "AUG",
+    "SEP",
+    "OCT",
+    "NOV",
+    "DEC",
+  ];
   return `${days[dateObj.getDay()]}, ${months[dateObj.getMonth()]} ${dateObj.getDate()}, ${dateObj.getFullYear()}`;
 }
 
 // Clicks the next day in the date picker
 async function clickNextDay(frame, prevDate) {
   console.log("📅 Attempting to click next day...");
-  await frame.waitForSelector(".MuiIconButton-root.MuiIconButton-colorPrimary", { visible: true });
+  await frame.waitForSelector(
+    ".MuiIconButton-root.MuiIconButton-colorPrimary",
+    { visible: true }
+  );
   await frame.waitForSelector('div[role="grid"]', { visible: true });
-  await frame.waitForFunction(() => document.querySelectorAll('button[role="gridcell"]').length > 0);
+  await frame.waitForFunction(
+    () => document.querySelectorAll('button[role="gridcell"]').length > 0
+  );
 
   const clicked = await frame.evaluate(() => {
     const cells = [...document.querySelectorAll('button[role="gridcell"]')];
-    const currentIndex = cells.findIndex((btn) => btn.getAttribute("aria-selected") === "true");
+    const currentIndex = cells.findIndex(
+      (btn) => btn.getAttribute("aria-selected") === "true"
+    );
     if (currentIndex === -1) return false;
     for (let i = currentIndex + 1; i < cells.length; i++) {
       const btn = cells[i];
@@ -62,7 +90,11 @@ async function clickNextDay(frame, prevDate) {
 
 // Main scraper
 async function scrapeDays(course, db, daysToScrape = 5) {
-  const browser = await puppeteer.launch({ headless: false, slowMo: 100 });
+  const browser = await puppeteer.launch({
+    headless: "new",
+    slowMo: 100,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
   const page = await browser.newPage();
   await page.goto(course.url, { waitUntil: "networkidle2", timeout: 60000 });
 
@@ -79,22 +111,32 @@ async function scrapeDays(course, db, daysToScrape = 5) {
   for (let i = 0; i < daysToScrape; i++) {
     await frame.waitForSelector("#selectDatePicker");
 
-    const currentDateText = await frame.$eval("#selectDatePicker", (el) => el.innerText.trim());
-    console.log(`\n${course.name} - Scraping tee times for ${currentDateText}...`);
+    const currentDateText = await frame.$eval("#selectDatePicker", (el) =>
+      el.innerText.trim()
+    );
+    console.log(
+      `\n${course.name} - Scraping tee times for ${currentDateText}...`
+    );
 
     try {
       const noTeeTimes = await frame.$('[data-testid="no-records-found"]');
       if (noTeeTimes) {
         console.log(`⚠️ No tee times available for ${currentDateText}`);
       } else {
-        await frame.waitForSelector('[data-testid="teetimes-tile-header-component"]');
+        await frame.waitForSelector(
+          '[data-testid="teetimes-tile-header-component"]'
+        );
 
         const teeTimes = await frame.evaluate(() => {
           const headers = Array.from(
-            document.querySelectorAll('[data-testid="teetimes-tile-header-component"]')
+            document.querySelectorAll(
+              '[data-testid="teetimes-tile-header-component"]'
+            )
           );
           const contents = Array.from(
-            document.querySelectorAll('[data-testid="teetimes-tile-content-component"]')
+            document.querySelectorAll(
+              '[data-testid="teetimes-tile-content-component"]'
+            )
           );
 
           const count = Math.min(headers.length, contents.length);
@@ -105,7 +147,9 @@ async function scrapeDays(course, db, daysToScrape = 5) {
             const content = contents[i];
 
             const time =
-              header.querySelector('[data-testid="teetimes-tile-time"]')?.textContent.trim() || "";
+              header
+                .querySelector('[data-testid="teetimes-tile-time"]')
+                ?.textContent.trim() || "";
 
             const playersText = header
               .querySelector('[data-testid="teetimes-tile-available-players"]')
@@ -116,12 +160,16 @@ async function scrapeDays(course, db, daysToScrape = 5) {
 
             const priceText = (() => {
               const priceEl = Array.from(
-                content.querySelectorAll(".MuiTypography-root.MuiTypography-body1")
+                content.querySelectorAll(
+                  ".MuiTypography-root.MuiTypography-body1"
+                )
               ).find((el) => /^\$\d+(\.\d{2})?$/.test(el.textContent.trim()));
               return priceEl?.textContent.trim() ?? null;
             })();
 
-            const price = priceText ? parseFloat(priceText.replace(/[^0-9.]/g, "")) : null;
+            const price = priceText
+              ? parseFloat(priceText.replace(/[^0-9.]/g, ""))
+              : null;
 
             result.push({ time, price, minPlayers, maxPlayers });
           }
@@ -144,14 +192,21 @@ async function scrapeDays(course, db, daysToScrape = 5) {
           scrapedAt,
         }));
 
-        await collection.deleteMany({ course: course.name, date: formattedDate });
-        console.log(`🧹 Removed old tee times for ${course.name} on ${formattedDate}`);
+        await collection.deleteMany({
+          course: course.name,
+          date: formattedDate,
+        });
+        console.log(
+          `🧹 Removed old tee times for ${course.name} on ${formattedDate}`
+        );
 
         await collection.insertMany(dataWithMeta);
         console.log(`✅ Inserted ${dataWithMeta.length} tee times`);
       }
     } catch (err) {
-      console.error(`${course.name} - Failed for ${currentDateText}: ${err.message}`);
+      console.error(
+        `${course.name} - Failed for ${currentDateText}: ${err.message}`
+      );
     }
 
     if (i < daysToScrape - 1) {
@@ -171,7 +226,7 @@ async function main() {
     const db = client.db(DB_NAME);
     for (const course of courses) {
       console.log(`\n📍 Scraping: ${course.name}`);
-      await scrapeDays(course, db, 2);
+      await scrapeDays(course, db, 5);
     }
     console.log("✅ Finished scraping.");
   } catch (err) {
