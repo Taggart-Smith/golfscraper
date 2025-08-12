@@ -36,14 +36,20 @@ const courses = [
 ];
 
 async function scrapeDays(course, db, daysToScrape = 5) {
-  const browser = await puppeteer.launch({ headless: false, slowMo: 100 });
+  const browser = await puppeteer.launch({
+    headless: "new",
+    slowMo: 100,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
   const page = await browser.newPage();
-
-  const buttonText = course.buttonText || "Public";
-  const courseName = course.name;
   const courseUrl = course.url;
 
   await page.goto(courseUrl, { waitUntil: "networkidle2", timeout: 60000 });
+
+  const buttonText = course.buttonText || "Public";
+  const courseName = course.name;
+  await page.waitForSelector(buttonSelector, { timeout: 5000 });
+
 
   // Handle any "I Agree", "Public", or similar gate buttons
   const buttonClicked = await page.evaluate((btnText) => {
