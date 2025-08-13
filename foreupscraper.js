@@ -1,4 +1,5 @@
-const puppeteer = require("puppeteer");
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 const { MongoClient } = require("mongodb");
 require("dotenv").config();
 
@@ -36,68 +37,46 @@ const courses = [
 ];
 
 async function scrapeDays(course, db, daysToScrape = 5) {
+  puppeteer.use(StealthPlugin());
+
   const browser = await puppeteer.launch({
-    headless: "new",
-    slowMo: 100,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    headless: false,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-blink-features=AutomationControlled",
+    ],
   });
   const page = await browser.newPage();
+
+  const buttonText = course.buttonText || "Public";
+  const courseName = course.name;
   const courseUrl = course.url;
 
   await page.goto(courseUrl, { waitUntil: "networkidle2", timeout: 60000 });
 
-  const buttonText = course.buttonText || "Public";
-  const courseName = course.name;
-
-  // Wait up to 10s for any clickable element containing the button text (case-insensitive)
-  try {
-    await page.waitForFunction(
-      (text) => {
-        return Array.from(document.querySelectorAll("button, a, div"))
-          .some(
-            (el) =>
-              el.textContent &&
-              el.textContent.trim().toLowerCase().includes(text.toLowerCase())
-          );
-      },
-      { timeout: 10000 },
-      buttonText
-    );
-
-    const clicked = await page.evaluate((text) => {
-      const elements = Array.from(document.querySelectorAll("button, a, div"));
-      const target = elements.find(
-        (el) =>
-          el.textContent &&
-          el.textContent.trim().toLowerCase().includes(text.toLowerCase())
-      );
-      if (target) {
-        target.click();
-        return true;
-      }
-      return false;
-    }, buttonText);
-
-    if (clicked) {
-      console.log(`✅ Clicked booking button "${buttonText}" for ${courseName}`);
-      await page.waitForSelector(".datepicker-switch", { timeout: 10000 });
-    } else {
-      console.warn(
-        `⚠️ Button with text "${buttonText}" not found for course ${courseName}`
-      );
+  const buttonClicked = await page.evaluate((btnText) => {
+    const buttons = Array.from(document.querySelectorAll("button"));
+    const target = buttons.find((b) => b.textContent.trim().includes(btnText));
+    if (target) {
+      target.click();
+      return true;
     }
-  } catch (err) {
+    return false;
+  }, buttonText);
+
+  if (!buttonClicked) {
     console.warn(
-      `⚠️ Could not find booking button "${buttonText}" for ${courseName}: ${err.message}`
+      `⚠️ Button with text "${buttonText}" not found for course ${course.name}`
     );
   }
 
-  // Click the active day cell to ensure calendar starts on the correct date
+  // Click the active day cell to ensure the calendar starts on the correct date
   await page.evaluate(() => {
     const activeDay = document.querySelector("td.active.day");
     if (activeDay) activeDay.click();
   });
-  await new Promise((res) => setTimeout(res, 1000)); // Wait for UI to update
+  await new Promise((res) => setTimeout(res, 5000)); // Wait for UI to update
 
   const collection = db.collection(COLLECTION_NAME);
 
@@ -114,13 +93,15 @@ async function scrapeDays(course, db, daysToScrape = 5) {
         : "Unknown date";
     });
 
-    console.log(`\n${courseName} - Scraping tee times for ${currentDateText}...`);
+    console.log(
+      `\n${courseName} - Scraping tee times for ${currentDateText}...`
+    );
 
     try {
       await page.waitForSelector(
         ".times-inner.time-tiles-aggregate-booking.js-times",
         {
-          timeout: 1000,
+          timeout: 5000,
         }
       );
 
@@ -188,7 +169,9 @@ async function scrapeDays(course, db, daysToScrape = 5) {
       }
 
       if (teeTimes.length === 0) {
-        console.log(`${courseName} - No tee times found for ${currentDateText}`);
+        console.log(
+          `${courseName} - No tee times found for ${currentDateText}`
+        );
       } else {
         const activeDayNum = await page.evaluate(() =>
           document.querySelector("td.active.day")?.textContent.trim()
@@ -216,7 +199,9 @@ async function scrapeDays(course, db, daysToScrape = 5) {
           course: courseName,
           date: formattedDate,
         });
-        console.log(`🧹 Removed old tee times for ${courseName} on ${formattedDate}`);
+        console.log(
+          `🧹 Removed old tee times for ${courseName} on ${formattedDate}`
+        );
 
         await collection.insertMany(dataWithMeta);
         console.log(`✅ Inserted ${dataWithMeta.length} tee times`);
