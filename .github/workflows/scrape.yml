@@ -27,12 +27,12 @@ jobs:
           COLLECTION_NAME: ${{ vars.COLLECTION_NAME }}
         run: node scraper.js
 
-      - name: Run Foreup scraper
-        env:
-            MONGO_URI: ${{ secrets.MONGO_URI }}
-            DB_NAME: ${{ vars.DB_NAME }}
-            COLLECTION_NAME: ${{ vars.COLLECTION_NAME }}
-        run: node foreupscraper.js
+      # - name: Run Foreup scraper
+      #   env:
+      #       MONGO_URI: ${{ secrets.MONGO_URI }}
+      #       DB_NAME: ${{ vars.DB_NAME }}
+      #       COLLECTION_NAME: ${{ vars.COLLECTION_NAME }}
+      #   run: node foreupscraper.js
 
       - name: Run utahscraper
         env:
