@@ -85,12 +85,16 @@ async function scrapeDays(courseName, courseUrl, db, daysToScrape = 5) {
               ? parseFloat(priceRaw.replace(/[^0-9.]/g, ""))
               : null;
 
+            const name = slot
+              .querySelector(".name").innerText?.trim() || null;
+
             return {
               time,
               courseName,
               minPlayers,
               maxPlayers,
               price,
+              name
             };
           })
           .filter(Boolean);
@@ -117,6 +121,7 @@ async function scrapeDays(courseName, courseUrl, db, daysToScrape = 5) {
         const dataWithMeta = teeTimes.map((t) => ({
           time: t.time,
           course: courseName,
+          name: t.name,
           minPlayers: t.minPlayers,
           maxPlayers: t.maxPlayers,
           price: t.price,
